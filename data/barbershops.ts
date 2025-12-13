@@ -1,3 +1,4 @@
+// Data Access Layer
 import { prisma } from "@/lib/prisma";
 
 export const getBarbershops = async () => {
@@ -12,4 +13,12 @@ export const getPopularBarbershops = async () => {
     },
   });
   return popularBarbershops;
+};
+
+export const getBarbershopById = async (id: string) => {
+  const barbershop = await prisma.barbershop.findUnique({
+    where: { id },
+    include: { services: true },
+  });
+  return barbershop;
 };

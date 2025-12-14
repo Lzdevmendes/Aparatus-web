@@ -37,17 +37,18 @@ model BarbershopService {
 }
 
 model Booking {
-  id           String            @id @default(uuid())
-  barbershopId String
-  barbershop   Barbershop        @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
-  serviceId    String
-  service      BarbershopService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  userId       String
-  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date         DateTime          @db.Timestamptz()
-  cancelledAt  DateTime?         @db.Timestamptz()
-  createdAt    DateTime          @default(now()) @db.Timestamptz()
-  updatedAt    DateTime          @updatedAt @db.Timestamptz()
+  id             String            @id @default(uuid())
+  stripeChargeId String?
+  barbershopId   String
+  barbershop     Barbershop        @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  serviceId      String
+  service        BarbershopService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date           DateTime          @db.Timestamptz()
+  cancelledAt    DateTime?         @db.Timestamptz()
+  createdAt      DateTime          @default(now()) @db.Timestamptz()
+  updatedAt      DateTime          @updatedAt @db.Timestamptz()
 }
 
 model User {

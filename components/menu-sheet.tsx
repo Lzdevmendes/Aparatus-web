@@ -15,8 +15,6 @@ import { MenuIcon, Home, CalendarDays, LogOut, LogIn } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
 
-const isLoggedIn = false;
-
 const categories = [
   { label: "Cabelo", search: "cabelo" },
   { label: "Barba", search: "barba" },

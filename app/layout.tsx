@@ -3,6 +3,7 @@ import { Merriweather, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { TanstackQueryProvider } from "@/providers/tanstack-query";
+import { BottomNav } from "@/components/bottom-nav";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta-sans",
@@ -18,14 +19,12 @@ const merriweather = Merriweather({
 
 export const metadata: Metadata = {
   title: "BarberSync",
-  description: "Agende nos melhores barbeiros da sua cidade.",
+  description: "Descubra as melhores barbearias e salões do litoral.",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-BR">
       <body
@@ -33,6 +32,7 @@ export default function RootLayout({
       >
         <TanstackQueryProvider>
           {children}
+          <BottomNav />
           <Toaster />
         </TanstackQueryProvider>
       </body>

@@ -3,68 +3,61 @@ import Footer from "@/components/footer";
 import BarbershopItem from "@/components/barbershop-item";
 import QuickSearch from "@/components/quick-search";
 import { searchBarbershops } from "@/data/barbershops";
-import {
-  PageContainer,
-  PageSectionContent,
-  PageSectionTitle,
-} from "@/components/ui/page";
+import { PageSectionContent, PageSectionTitle } from "@/components/ui/page";
 import { Suspense } from "react";
 
 interface BarbershopsPageProps {
-  searchParams: Promise<{
-    search?: string;
-    city?: string;
-    gender?: string;
-  }>;
+  searchParams: Promise<{ search?: string; city?: string; gender?: string }>;
 }
 
 const BarbershopsPage = async ({ searchParams }: BarbershopsPageProps) => {
   const { search, city, gender } = await searchParams;
 
-  const barbershops = await searchBarbershops({
-    query: search,
-    city,
-    gender,
-  });
-
-  const hasFilters = search || city || gender;
+  const barbershops = await searchBarbershops({ query: search, city, gender });
 
   const titleParts: string[] = [];
   if (search) titleParts.push(`"${search}"`);
   if (city) titleParts.push(city);
-  if (gender) titleParts.push(gender);
-  const title = hasFilters
-    ? `Resultados para ${titleParts.join(" · ")}`
-    : "Todos os estabelecimentos";
+  const title =
+    titleParts.length > 0
+      ? `Resultados · ${titleParts.join(" · ")}`
+      : "Todos os estabelecimentos";
 
   return (
-    <div>
+    <div className="flex min-h-screen flex-col pb-20">
       <Header />
-      <PageContainer>
+      <div className="space-y-6 p-5">
         <Suspense>
           <QuickSearch />
         </Suspense>
+
         <PageSectionContent>
-          <PageSectionTitle>{title}</PageSectionTitle>
+          <div className="flex items-center justify-between">
+            <PageSectionTitle>{title}</PageSectionTitle>
+            <span className="text-muted-foreground text-xs">
+              {barbershops.length}{" "}
+              {barbershops.length === 1 ? "resultado" : "resultados"}
+            </span>
+          </div>
+
           {barbershops.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              Nenhum estabelecimento encontrado. Tente outro filtro.
-            </p>
-          ) : (
-            <>
-              <p className="text-muted-foreground mb-4 text-xs">
-                {barbershops.length}{" "}
-                {barbershops.length === 1 ? "estabelecimento encontrado" : "estabelecimentos encontrados"}
+            <div className="py-12 text-center">
+              <p className="text-muted-foreground text-sm">
+                Nenhum estabelecimento encontrado.
               </p>
-              <div className="grid grid-cols-1 gap-4">
-                {barbershops.map((barbershop) => (
-                  <BarbershopItem key={barbershop.id} barbershop={barbershop} />
-                ))}
-              </div>
-            </>
+              <p className="text-muted-foreground mt-1 text-xs">
+                Tente outro filtro ou cidade.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4">
+              {barbershops.map((barbershop) => (
+                <BarbershopItem key={barbershop.id} barbershop={barbershop} />
+              ))}
+            </div>
           )}
         </PageSectionContent>
-      </PageContainer>
+      </div>
       <Footer />
     </div>
   );

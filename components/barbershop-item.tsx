@@ -19,30 +19,31 @@ const BarbershopItem = ({ barbershop }: BarbershopItemProps) => {
   return (
     <Link
       href={`/barbershops/${barbershop.id}`}
-      className="relative min-h-[200px] min-w-[290px] rounded-xl"
+      className="relative min-h-52 min-w-72 rounded-2xl overflow-hidden block"
     >
-      <div className="absolute inset-0 z-10 rounded-xl bg-linear-to-t from-black/80 via-black/20 to-transparent" />
+      <div className="absolute inset-0 z-10 rounded-2xl bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
       <Image
         src={barbershop.imageUrl}
         alt={barbershop.name}
         fill
-        className="rounded-xl object-cover"
+        className="object-cover"
       />
 
-      {/* Gender badge */}
-      <div className="absolute top-3 left-3 z-20 flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 backdrop-blur-sm">
+      {/* Type badge */}
+      <div className="absolute top-3 left-3 z-20 flex items-center gap-1 rounded-full bg-black/50 px-2.5 py-1 backdrop-blur-sm">
         <Icon className="size-3 text-white" />
-        <span className="text-xs font-medium text-white">{label}</span>
+        <span className="text-[11px] font-medium text-white">{label}</span>
       </div>
 
+      {/* Info */}
       <div className="absolute right-0 bottom-0 left-0 z-20 p-4">
-        <h3 className="text-background text-lg font-bold leading-tight">
+        <h3 className="text-base font-bold text-white leading-tight">
           {barbershop.name}
         </h3>
         <div className="mt-1 flex items-center gap-1">
-          <MapPin className="size-3 text-white/70" />
-          <p className="text-xs text-white/70">
-            {barbershop.city} · {barbershop.address}
+          <MapPin className="size-3 text-white/60 shrink-0" />
+          <p className="text-xs text-white/70 truncate">
+            {barbershop.city}
           </p>
         </div>
       </div>

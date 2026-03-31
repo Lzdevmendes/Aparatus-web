@@ -3,8 +3,6 @@ import { google } from "@ai-sdk/google";
 import z from "zod";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { getDateAvailableTimeSlots } from "@/actions/get-date-available-time-slots";
-import { createBooking } from "@/actions/create-booking";
 
 export const GET = async (request: Request) => {
   const session = await auth.api.getSession({ headers: request.headers });
@@ -13,6 +11,7 @@ export const GET = async (request: Request) => {
   const messages = await prisma.chatMessage.findMany({
     where: { userId: session.user.id },
     orderBy: { createdAt: "asc" },
+    take: 100,
   });
 
   return Response.json(
@@ -33,138 +32,78 @@ export const POST = async (request: Request) => {
     model: google("gemini-2.5-flash"),
     messages: convertToModelMessages(messages),
     stopWhen: stepCountIs(10),
-    system: `Você é o BarberSync, um assistente virtual de agendamento de barbearias e salões de beleza do Litoral Norte de SP e Bertioga.
+    system: `Você é o assistente de beleza do BarberSync, o app de descoberta de barbearias e salões do Litoral Norte de SP e Bertioga.
 
-    DATA ATUAL: Hoje é ${new Date().toLocaleDateString("pt-BR", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    })} (${new Date().toISOString().split("T")[0]})
+DATA ATUAL: ${new Date().toLocaleDateString("pt-BR", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
 
-    Cidades que você atende: Caraguatatuba, Ubatuba, Ilhabela, São Sebastião e Bertioga.
+Cidades disponíveis: Caraguatatuba, Ubatuba, Ilhabela, São Sebastião e Bertioga.
 
-    Tipos de estabelecimentos:
-    - MASCULINE: Barbearias (corte masculino, barba, etc.)
-    - FEMININE: Salões de beleza femininos (escova, coloração, manicure, etc.)
-    - UNISEX: Estabelecimentos que atendem todos os gêneros
+Tipos de estabelecimentos:
+- MASCULINE: Barbearias (corte masculino, barba)
+- FEMININE: Salões femininos (escova, coloração, manicure)
+- UNISEX: Atende todos os gêneros
 
-    Seu objetivo é ajudar os usuários a:
-    - Encontrar barbearias e salões por cidade, nome ou tipo (masculino/feminino/unissex)
-    - Verificar disponibilidade de horários
-    - Agendar serviços
-    - Analisar o rosto do usuário (via foto) e recomendar os melhores cortes de cabelo
+Suas funções são:
+1. Ajudar o usuário a DESCOBRIR barbearias e salões por cidade, tipo ou serviço
+2. Recomendar cortes de cabelo baseado em preferências
+3. Analisar o rosto do usuário (via foto) e sugerir estilos ideais
 
-    Fluxo para ANÁLISE FACIAL (quando o usuário enviar uma foto ou pedir recomendação de corte baseada no rosto):
-    1. Use a ferramenta analyzeFace passando a imagem em base64
-    2. Apresente os resultados de forma amigável:
-       - Formato do rosto identificado
-       - Cortes recomendados para o formato
-       - Estilos que combinam com a idade aproximada
-    3. Pergunte se deseja agendar algum dos cortes recomendados
-    4. Se sim, inicie o fluxo de agendamento normal
+IMPORTANTE: Este app é apenas para DESCOBERTA de estabelecimentos. Não há agendamento online.
+Quando o usuário quiser marcar horário, oriente-o a entrar em contato diretamente pelo WhatsApp do estabelecimento.
 
-    Fluxo de AGENDAMENTO:
-    CENÁRIO 1 - Usuário menciona data/horário:
-    1. Use searchBarbershops para buscar estabelecimentos (filtre por cidade e gênero se mencionados)
-    2. Use getAvailableTimeSlotsForBarbershop para CADA estabelecimento retornado
-    3. Apresente APENAS os que têm horários disponíveis com: nome, cidade, endereço, serviços e preços, alguns horários (4-5 opções)
+Ao apresentar um estabelecimento, mostre:
+- Nome e cidade
+- Tipo (barbearia/salão/unissex)
+- Endereço
+- Serviços e preços relevantes
+- Telefone para contato via WhatsApp
 
-    CENÁRIO 2 - Usuário não menciona data:
-    1. Use searchBarbershops para mostrar os estabelecimentos
-    2. Quando o usuário escolher e mencionar data, use getAvailableTimeSlotsForBarbershop
-    3. Apresente os horários disponíveis
+Para análise facial:
+1. Use a ferramenta analyzeFace quando o usuário enviar uma foto ou pedir análise de corte baseada no rosto
+2. Apresente os resultados de forma amigável com os cortes recomendados
+3. Mostre para qual tipo de estabelecimento encaminhar o usuário (masculino/feminino/unissex)
 
-    Resumo final (quando escolher):
-    - Nome do estabelecimento e cidade
-    - Serviço escolhido
-    - Data e horário
-    - Preço
+Seja sempre:
+- Informal e amigável (tutear o usuário)
+- Útil e objetivo
+- Em português do Brasil`,
 
-    Criação da reserva:
-    - Após confirmação explícita, use createBooking
-    - Se sucesso, confirme a reserva
-    - Se erro "User must be logged in", informe que é necessário fazer login
-
-    Importante:
-    - NUNCA mostre IDs técnicos ao usuário
-    - Seja educado, informal e amigável
-    - Sugira apenas 4-5 horários espaçados, não todos
-    - Se não houver horários, sugira outra data
-    - Quando usuário disser "hoje", "amanhã", "sexta", etc. calcule a data correta
-    - Deixe claro que atende tanto homens quanto mulheres`,
     tools: {
-      searchBarbershops: tool({
-        description:
-          "Pesquisa barbearias e salões. Pode filtrar por nome, cidade e tipo (MASCULINE, FEMININE, UNISEX).",
+      searchEstablishments: tool({
+        description: "Busca barbearias e salões. Filtra por nome, cidade e tipo.",
         inputSchema: z.object({
-          name: z.string().optional().describe("Nome do estabelecimento"),
-          city: z
-            .string()
-            .optional()
-            .describe(
-              "Cidade: Caraguatatuba, Ubatuba, Ilhabela, São Sebastião ou Bertioga",
-            ),
-          gender: z
-            .enum(["MASCULINE", "FEMININE", "UNISEX"])
-            .optional()
-            .describe("Tipo de estabelecimento"),
+          query: z.string().optional().describe("Nome do estabelecimento ou serviço"),
+          city: z.string().optional().describe("Cidade: Caraguatatuba, Ubatuba, Ilhabela, São Sebastião ou Bertioga"),
+          gender: z.enum(["MASCULINE", "FEMININE", "UNISEX"]).optional().describe("Tipo: MASCULINE, FEMININE ou UNISEX"),
         }),
-        execute: async ({ name, city, gender }) => {
-          return await prisma.barbershop.findMany({
+        execute: async ({ query, city, gender }) => {
+          const results = await prisma.barbershop.findMany({
             where: {
-              ...(name && { name: { contains: name, mode: "insensitive" } }),
-              ...(city && { city: { contains: city, mode: "insensitive" } }),
-              ...(gender && { gender }),
+              AND: [
+                city ? { city: { contains: city, mode: "insensitive" } } : {},
+                gender ? { gender } : {},
+                query ? {
+                  OR: [
+                    { name: { contains: query, mode: "insensitive" } },
+                    { city: { contains: query, mode: "insensitive" } },
+                    { services: { some: { name: { contains: query, mode: "insensitive" }, deletedAt: null } } },
+                  ],
+                } : {},
+              ],
             },
             include: { services: { where: { deletedAt: null } } },
+            orderBy: [{ bookings: { _count: "desc" } }, { name: "asc" }],
+            take: 10,
           });
-        },
-      }),
-
-      getAvailableTimeSlotsForBarbershop: tool({
-        description: "Obtém horários disponíveis para um estabelecimento em uma data.",
-        inputSchema: z.object({
-          barbershopId: z.string().uuid(),
-          date: z.string().describe("Data no formato ISO (YYYY-MM-DD)"),
-        }),
-        execute: async ({ barbershopId, date }) => {
-          const availableTimeSlots = await getDateAvailableTimeSlots({
-            barbershopId,
-            date: new Date(date),
-          });
-          return { barbershopId, date, availableTimeSlots };
-        },
-      }),
-
-      createBooking: tool({
-        description: "Cria um agendamento para um serviço específico.",
-        inputSchema: z.object({
-          serviceId: z.uuid(),
-          date: z.string().describe("Data e hora no formato ISO (YYYY-MM-DDTHH:mm:ss)"),
-        }),
-        execute: async ({ serviceId, date }) => {
-          try {
-            await createBooking({ serviceId, date: new Date(date) });
-            return { success: true };
-          } catch (error) {
-            console.error("createBooking error", error);
-            return { success: false };
-          }
+          return results;
         },
       }),
 
       analyzeFace: tool({
-        description:
-          "Analisa o formato do rosto de uma foto e recomenda os melhores cortes de cabelo baseados no formato do rosto, gênero aparente e idade aproximada.",
+        description: "Analisa o formato do rosto via foto e recomenda os melhores cortes de cabelo.",
         inputSchema: z.object({
-          imageBase64: z
-            .string()
-            .describe("Imagem em base64 (sem o prefixo data:image/...)"),
-          mimeType: z
-            .string()
-            .default("image/jpeg")
-            .describe("Tipo MIME da imagem"),
+          imageBase64: z.string().describe("Imagem em base64"),
+          mimeType: z.string().default("image/jpeg"),
         }),
         execute: async ({ imageBase64, mimeType }) => {
           try {
@@ -174,73 +113,51 @@ export const POST = async (request: Request) => {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  contents: [
-                    {
-                      parts: [
-                        {
-                          inlineData: {
-                            mimeType,
-                            data: imageBase64,
-                          },
-                        },
-                        {
-                          text: `Analise esta foto e responda em JSON com o seguinte formato:
+                  contents: [{
+                    parts: [
+                      { inlineData: { mimeType, data: imageBase64 } },
+                      {
+                        text: `Analise este rosto e retorne JSON puro:
 {
-  "faceShape": "oval | redondo | quadrado | coração | retangular | diamante | triangular",
+  "faceShape": "oval|redondo|quadrado|coração|retangular|diamante|triangular",
   "approximateAge": número,
-  "gender": "masculino | feminino | não identificado",
-  "recommendations": [
-    {
-      "cut": "nome do corte",
-      "description": "por que esse corte combina com o formato de rosto",
-      "style": "clássico | moderno | ousado"
-    }
-  ],
-  "avoid": ["cortes que NÃO combinam e por quê"]
+  "gender": "masculino|feminino",
+  "recommendations": [{"cut": "nome", "why": "motivo", "style": "clássico|moderno|ousado|casual"}],
+  "avoid": ["cortes a evitar"],
+  "tip": "dica personalizada",
+  "establishmentType": "MASCULINE|FEMININE|UNISEX"
 }
-Forneça 4-5 recomendações de cortes ideais para o formato de rosto identificado, levando em conta a idade aproximada e o gênero. Seja específico nos nomes dos cortes (ex: "Degradê alto", "Bob chanel", "Corte César", "Undercut", etc).`,
-                        },
-                      ],
-                    },
-                  ],
+Dê 4-5 recomendações específicas baseadas no formato do rosto, idade e gênero.`,
+                      },
+                    ],
+                  }],
                   generationConfig: { responseMimeType: "application/json" },
                 }),
               },
             );
-
             const data = await response.json();
-            const text =
-              data.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
             return JSON.parse(text);
-          } catch (error) {
-            console.error("analyzeFace error", error);
-            return {
-              error: "Não foi possível analisar a imagem. Tente novamente.",
-            };
+          } catch {
+            return { error: "Não foi possível analisar a imagem." };
           }
         },
       }),
     },
+
     onFinish: async ({ text }) => {
       if (!session?.user?.id) return;
-
-      const lastUserMessage = messages[messages.length - 1];
-      const userText =
-        lastUserMessage?.parts
-          ?.filter((p: { type: string }) => p.type === "text")
-          ?.map((p: { type: string; text: string }) => p.text)
-          ?.join("") ?? "";
+      const lastMsg = messages[messages.length - 1];
+      const userText = lastMsg?.parts
+        ?.filter((p: { type: string }) => p.type === "text")
+        ?.map((p: { type: string; text: string }) => p.text)
+        ?.join("") ?? "";
 
       if (!userText && !text) return;
-
       await prisma.chatMessage.createMany({
         data: [
-          ...(userText
-            ? [{ userId: session.user.id, role: "user", content: userText }]
-            : []),
-          ...(text
-            ? [{ userId: session.user.id, role: "assistant", content: text }]
-            : []),
+          ...(userText ? [{ userId: session.user.id, role: "user", content: userText }] : []),
+          ...(text ? [{ userId: session.user.id, role: "assistant", content: text }] : []),
         ],
       });
     },

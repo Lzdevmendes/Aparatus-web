@@ -1,24 +1,12 @@
-import { BotMessageSquare } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
-import { Button } from "./ui/button";
-import MenuSheet from "./menu-sheet";
-
 const Header = () => {
   return (
-    <header className="bg-background flex items-center justify-between px-5 py-6">
+    <header className="bg-background/95 border-border sticky top-0 z-30 flex items-center justify-between border-b px-5 py-4 backdrop-blur-sm">
       <Link href="/">
-        <Image src="/logo.svg" alt="BarberSync" width={91} height={24} />
+        <Image src="/logo.svg" alt="BarberSync" width={110} height={28} />
       </Link>
-      <div className="flex items-center gap-2">
-        <Link href="/chat">
-          <Button variant="outline" size="icon">
-            <BotMessageSquare className="size-5" />
-          </Button>
-        </Link>
-        <MenuSheet />
-      </div>
     </header>
   );
 };

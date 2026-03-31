@@ -11,43 +11,32 @@ import {
   SheetTrigger,
 } from "./ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import { MenuIcon, Home, CalendarDays, LogOut, LogIn } from "lucide-react";
+import { MenuIcon, Home, Search, LogOut, LogIn, BotMessageSquare, User } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
-
-const categories = [
-  { label: "Cabelo", search: "cabelo" },
-  { label: "Barba", search: "barba" },
-  { label: "Acabamento", search: "acabamento" },
-  { label: "Sobrancelha", search: "sobrancelha" },
-  { label: "Massagem", search: "massagem" },
-  { label: "Hidratacao", search: "hidratacao" },
-];
+import { useRouter } from "next/navigation";
 
 const MenuSheet = () => {
   const { data: session } = authClient.useSession();
-  const handleLogin = async () => {
-    const { error } = await authClient.signIn.social({
-      provider: "google",
-    });
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-  };
-  const handleLogout = async () => {
-    const { error } = await authClient.signOut();
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-  };
+  const router = useRouter();
   const isLoggedIn = !!session?.user;
+
+  const handleLogin = async () => {
+    const { error } = await authClient.signIn.social({ provider: "google" });
+    if (error) toast.error(error.message);
+  };
+
+  const handleLogout = async () => {
+    await authClient.signOut();
+    toast.success("Até logo!");
+    router.replace("/login");
+  };
+
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="outline" size="icon">
-          <MenuIcon />
+        <Button variant="outline" size="icon" className="rounded-full">
+          <MenuIcon className="size-4" />
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="p-0">
@@ -56,83 +45,65 @@ const MenuSheet = () => {
         </SheetHeader>
 
         <div className="flex flex-col gap-6 py-6">
+          {/* User */}
           <div className="flex items-center justify-between px-5">
             {isLoggedIn ? (
               <div className="flex items-center gap-3">
                 <Avatar className="size-12">
-                  <AvatarImage
-                    src={session.user.image ?? ""}
-                    alt={session.user.name}
-                  />
-                  <AvatarFallback>
+                  <AvatarImage src={session.user.image ?? ""} alt={session.user.name} />
+                  <AvatarFallback className="bg-primary/10 text-primary font-bold">
                     {session.user.name.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex flex-col">
-                  <span className="font-semibold">{session.user.name}</span>
-                  <span className="text-muted-foreground text-sm">
-                    {session.user.email}
-                  </span>
+                <div>
+                  <p className="font-semibold">{session.user.name}</p>
+                  <p className="text-muted-foreground text-xs">{session.user.email}</p>
                 </div>
               </div>
             ) : (
               <>
-                <p className="font-semibold">Olá. Faça seu login!</p>
-                <Button className="gap-3 rounded-full" onClick={handleLogin}>
-                  Login
-                  <LogIn className="size-4" />
+                <p className="font-semibold">Olá! Faça seu login</p>
+                <Button className="gap-2 rounded-full" onClick={handleLogin}>
+                  <LogIn className="size-4" /> Login
                 </Button>
               </>
             )}
           </div>
 
-          <div className="flex flex-col">
-            <SheetClose asChild>
-              <Link
-                href="/"
-                className="flex items-center gap-3 px-5 py-3 text-sm font-medium"
-              >
-                <Home className="size-4" />
-                Início
-              </Link>
-            </SheetClose>
-            <SheetClose asChild>
-              <Link
-                href="/bookings"
-                className="flex items-center gap-3 px-5 py-3 text-sm font-medium"
-              >
-                <CalendarDays className="size-4" />
-                Agendamentos
-              </Link>
-            </SheetClose>
-          </div>
-
           <div className="border-border border-b" />
 
-          <div className="flex flex-col gap-1">
-            {categories.map((category) => (
-              <SheetClose key={category.search} asChild>
+          {/* Navigation */}
+          <div className="flex flex-col">
+            {[
+              { href: "/", icon: Home, label: "Início" },
+              { href: "/barbershops", icon: Search, label: "Buscar salões" },
+              { href: "/chat", icon: BotMessageSquare, label: "Chat com IA" },
+              { href: "/profile", icon: User, label: "Perfil" },
+            ].map(({ href, icon: Icon, label }) => (
+              <SheetClose key={href} asChild>
                 <Link
-                  href={`/barbershops?search=${category.search}`}
-                  className="px-5 py-3 text-sm font-medium"
+                  href={href}
+                  className="flex items-center gap-3 px-5 py-3 text-sm font-medium"
                 >
-                  {category.label}
+                  <Icon className="size-4" />
+                  {label}
                 </Link>
               </SheetClose>
             ))}
           </div>
 
-          <div className="border-border border-b" />
-
           {isLoggedIn && (
-            <Button
-              variant="ghost"
-              className="justify-left w-fit text-left"
-              onClick={handleLogout}
-            >
-              <LogOut className="size-4" />
-              Sair da conta
-            </Button>
+            <>
+              <div className="border-border border-b" />
+              <Button
+                variant="ghost"
+                className="mx-5 justify-start gap-3 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={handleLogout}
+              >
+                <LogOut className="size-4" />
+                Sair da conta
+              </Button>
+            </>
           )}
         </div>
       </SheetContent>

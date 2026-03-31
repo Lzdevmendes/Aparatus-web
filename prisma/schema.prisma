@@ -13,13 +13,21 @@ datasource db {
   provider = "postgresql"
 }
 
+enum SalonGender {
+  MASCULINE
+  FEMININE
+  UNISEX
+}
+
 model Barbershop {
   id          String              @id @default(uuid())
   name        String
   address     String
+  city        String              @default("Caraguatatuba")
   description String
   imageUrl    String
   phones      String[]
+  gender      SalonGender         @default(UNISEX)
   services    BarbershopService[]
   bookings    Booking[]
 }
@@ -52,19 +60,32 @@ model Booking {
 }
 
 model User {
-  id            String    @id
+  id            String        @id
   name          String
   email         String
-  emailVerified Boolean   @default(false)
+  emailVerified Boolean       @default(false)
   image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
   sessions      Session[]
   accounts      Account[]
   bookings      Booking[]
+  chatMessages  ChatMessage[]
 
   @@unique([email])
   @@map("user")
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String
+  content   String
+  createdAt DateTime @default(now()) @db.Timestamptz()
+
+  @@index([userId])
+  @@map("chat_message")
 }
 
 model Session {
